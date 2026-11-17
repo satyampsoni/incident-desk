@@ -1,0 +1,15 @@
+# For disposable demos or Docker VMs with a full data volume.
+# Existing named volumes are left intact. These two stores reset on recreation.
+services:
+  prometheus:
+    volumes: !override
+      - ./observability/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ./observability/alerts.yml:/etc/prometheus/alerts.yml:ro
+    tmpfs:
+      - /prometheus:rw,size=128m,mode=1777
+  grafana:
+    volumes: !override
+      - ./observability/grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./observability/grafana/dashboards:/var/lib/grafana/dashboards:ro
+    tmpfs:
+      - /var/lib/grafana:rw,size=128m,mode=1777

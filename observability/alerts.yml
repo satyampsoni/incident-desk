@@ -1,0 +1,30 @@
+groups:
+  - name: incident-desk
+    rules:
+      - alert: IncidentDeskUnavailable
+        expr: up{job="incident-desk"} == 0
+        for: 30s
+        labels:
+          severity: critical
+        annotations:
+          summary: Incident Desk cannot be scraped
+          description: Check the application container and /healthz before investigating sandbox failures.
+      - alert: IncidentDeskExecutionFailures
+        expr: |
+          (sum(rate(incident_desk_runs_total{status="error"}[5m]))
+            / sum(rate(incident_desk_runs_total[5m]))) > 0.10
+          and sum(increase(incident_desk_runs_total[5m])) >= 20
+        for: 2m
+        labels:
+          severity: warning
+        annotations:
+          summary: More than 10% of executions are failing
+          description: At least 20 runs were observed in five minutes. Inspect run history and application logs.
+      - alert: IncidentDeskAdmissionPressure
+        expr: sum(rate(incident_desk_rejections_total{reason="capacity"}[5m])) > 0
+        for: 1m
+        labels:
+          severity: warning
+        annotations:
+          summary: Execution requests are being rejected at capacity
+          description: Inspect worker utilization and execution time before increasing concurrency.
