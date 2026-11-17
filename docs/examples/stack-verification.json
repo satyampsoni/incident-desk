@@ -1,0 +1,16 @@
+{
+  "checkedAt": "2026-11-17T05:59:32.963Z",
+  "app": "http://127.0.0.1:4310",
+  "prometheus": "http://127.0.0.1:4312",
+  "grafana": "http://127.0.0.1:4311",
+  "checks": {
+    "health": "passed",
+    "investigation": "passed",
+    "prometheusIngestion": "passed",
+    "dashboardProvisioning": "passed",
+    "panelExpressions": 21,
+    "alertRules": 3
+  },
+  "dashboardPanels": 24,
+  "note": "Synthetic incident data; actual sandbox execution, metrics, and Grafana provisioning."
+}

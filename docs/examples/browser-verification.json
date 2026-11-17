@@ -1,0 +1,11 @@
+{
+  "checkedAt": "2026-11-17T05:58:07.735Z",
+  "browser": "157.0.8103.79",
+  "url": "http://127.0.0.1:4311/d/incident-desk",
+  "pageErrors": [],
+  "visiblePanelErrors": [],
+  "screenshots": [
+    "docs/assets/dashboard-overview.png",
+    "docs/assets/dashboard-evidence.png"
+  ]
+}

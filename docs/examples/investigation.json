@@ -1,0 +1,76 @@
+{
+  "success": true,
+  "value": {
+    "snapshot": "checkout-release-regression",
+    "source": "synthetic-fixture",
+    "observedAt": "2026-11-17T10:00:00Z",
+    "windows": {
+      "before": {
+        "from": "2026-11-17T09:20:00Z",
+        "to": "2026-11-17T09:40:00Z"
+      },
+      "after": {
+        "from": "2026-11-17T09:40:00Z",
+        "to": "2026-11-17T10:00:00Z"
+      }
+    },
+    "servicesChecked": 3,
+    "findings": [
+      {
+        "service": "checkout",
+        "owner": "commerce",
+        "severity": "critical",
+        "beforeErrorRate": 0.005,
+        "afterErrorRate": 0.06,
+        "errorRateRatio": 12,
+        "p95LatencyMs": 1480,
+        "latencyRatio": 7.0476190476190474,
+        "recentDeployments": [
+          {
+            "version": "checkout-2026.11.17.2",
+            "deployedAt": "2026-11-17T09:42:00Z",
+            "summary": "Enable synchronous address validation"
+          }
+        ],
+        "errorSamples": [
+          {
+            "timestamp": "2026-11-17T09:45:02Z",
+            "code": "ADDRESS_PROVIDER_TIMEOUT",
+            "message": "Address validation exceeded its 1200ms deadline"
+          },
+          {
+            "timestamp": "2026-11-17T09:49:17Z",
+            "code": "ADDRESS_PROVIDER_TIMEOUT",
+            "message": "Address validation exceeded its 1200ms deadline"
+          }
+        ],
+        "nextStep": "Compare the deployment diff with these errors; timing alone does not establish causation."
+      },
+      {
+        "service": "inventory",
+        "owner": "fulfillment",
+        "severity": "watch",
+        "beforeErrorRate": 0.012,
+        "afterErrorRate": 0.018,
+        "errorRateRatio": 1.4999999999999998,
+        "p95LatencyMs": 420,
+        "latencyRatio": 1.105263157894737,
+        "recentDeployments": [],
+        "errorSamples": [
+          {
+            "timestamp": "2026-11-17T09:52:11Z",
+            "code": "RESERVATION_CONFLICT",
+            "message": "Reservation competed with an in-flight stock adjustment"
+          }
+        ],
+        "nextStep": "Inspect the sampled errors and check upstream dependencies."
+      }
+    ]
+  },
+  "logs": [],
+  "toolCallCount": 8,
+  "durationMs": 9,
+  "memoryUsedMb": 0.08373260498046875,
+  "runId": "8c02cb24-7187-47af-ad9f-9bff65b5666e",
+  "workflow": "triage"
+}

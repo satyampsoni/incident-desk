@@ -1,0 +1,78 @@
+
+> incident-desk@0.1.0 test
+> npm run build && node --test --test-concurrency=1 dist/test/*.test.js
+
+
+> incident-desk@0.1.0 build
+> tsc
+
+TAP version 13
+# Subtest: HTTP boundary authenticates execution, rejects browser origins and invalid payloads, and exposes scrape metrics
+ok 1 - HTTP boundary authenticates execution, rejects browser origins and invalid payloads, and exposes scrape metrics
+  ---
+  duration_ms: 73.052166
+  type: 'test'
+  ...
+# Subtest: an MCP client can discover schemas and execute a script through the monitored entrypoint
+ok 2 - an MCP client can discover schemas and execute a script through the monitored entrypoint
+  ---
+  duration_ms: 2481.739208
+  type: 'test'
+  ...
+# Subtest: triage joins evidence, skips detail queries for healthy services, and counts actual tool calls
+ok 3 - triage joins evidence, skips detail queries for healthy services, and counts actual tool calls
+  ---
+  duration_ms: 78.630917
+  type: 'test'
+  ...
+# Subtest: guest code has no host globals, and a fresh interpreter is used for each run
+ok 4 - guest code has no host globals, and a fresh interpreter is used for each run
+  ---
+  duration_ms: 44.73525
+  type: 'test'
+  ...
+# Subtest: tool input validation and unknown-tool rejection happen inside the real bridge
+ok 5 - tool input validation and unknown-tool rejection happen inside the real bridge
+  ---
+  duration_ms: 55.967541
+  type: 'test'
+  ...
+# Subtest: CPU timeout terminates a worker and a subsequent investigation still succeeds
+ok 6 - CPU timeout terminates a worker and a subsequent investigation still succeeds
+  ---
+  duration_ms: 191.225
+  type: 'test'
+  ...
+# Subtest: tool budget stops a loop without poisoning the next execution
+ok 7 - tool budget stops a loop without poisoning the next execution
+  ---
+  duration_ms: 51.292417
+  type: 'test'
+  ...
+# Subtest: admission is bounded independently of the SDK worker queue
+ok 8 - admission is bounded independently of the SDK worker queue
+  ---
+  duration_ms: 189.313208
+  type: 'test'
+  ...
+# Subtest: output and source-code limits reject oversized payloads
+ok 9 - output and source-code limits reject oversized payloads
+  ---
+  duration_ms: 46.500834
+  type: 'test'
+  ...
+# Subtest: snapshots reject inconsistent counts, duplicate identities, and incomparable windows
+ok 10 - snapshots reject inconsistent counts, duplicate identities, and incomparable windows
+  ---
+  duration_ms: 0.858292
+  type: 'test'
+  ...
+1..10
+# tests 10
+# suites 0
+# pass 10
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 4126.338625
