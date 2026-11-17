@@ -91,3 +91,7 @@ For Bifrost, the benchmark notes use the overall summary's cumulative-token and 
 - External evaluations have not been replicated in this project. Existing local checks remain the tests and stack verification recorded in [VERIFICATION.md](../VERIFICATION.md).
 
 The research changes the article's framing and sections. It does not change application behavior or manufacture a new benchmark for it.
+
+## Editorial guide
+
+The company article applies [Stop Slop](https://github.com/hardikpandya/stop-slop/blob/main/SKILL.md) and its phrase, structure, and example references, as requested. The guide informs the prose; the technical references above support the factual claims.
