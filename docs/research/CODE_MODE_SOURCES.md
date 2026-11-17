@@ -4,7 +4,11 @@ Research date: **17 November 2026**. This register supports [the revised blog](.
 
 Scope: public Code Mode material found on Cloudflare and Substack, followed by the original measurements linked from those discussions. Search included `code mode`, `codemode`, MCP, tokens, latency, benchmarks, and the official Cloudflare Agents documentation index. This is a record of the material found and reviewed, not a claim to enumerate every newsletter or paywalled post on the internet.
 
-The blog contains the selected quantitative comparisons, their denominators, the implementation, Grafana screenshots, and a proposed evaluation. This register retains the wider reading trail without reproducing other authors' articles.
+The company article follows the idea from its origins to the NitroStack application and Grafana dashboard. Detailed quantitative comparisons are preserved in the [benchmark notes](CODE_MODE_BENCHMARKS.md). This register retains the wider reading trail without reproducing other authors' articles.
+
+## Earlier research
+
+[CodeAct, published at ICML 2024](https://proceedings.mlr.press/v235/wang24h.html), provides earlier research context for executable code as an agent's action interface. It supports the article's history section; it is not treated as the same implementation as later Code Mode products.
 
 ## Cloudflare articles
 
@@ -18,9 +22,9 @@ The blog contains the selected quantitative comparisons, their denominators, the
 | [Unified data platform and Skipper](https://blog.cloudflare.com/our-unified-data-platform/) | 28 May 2026 | Data-query orchestration example |
 | [MCP’s next generation](https://blog.cloudflare.com/mcp-v2/) | 6 Aug 2026 | Protocol and deployment context, not an efficiency benchmark |
 
-The Dynamic Workers article also retrospectively mentions an **81%** token reduction. It does not supply a separate controlled evaluation in that passage. The blog does not count it as another independent task benchmark.
+The Dynamic Workers article also retrospectively mentions an **81%** token reduction. It does not supply a separate controlled evaluation in that passage. The benchmark notes do not count it as another independent task benchmark.
 
-The API post and podcast description give different baselines. The blog identifies its primary-page source; the reason for the discrepancy is not established.
+The API post and podcast description give different baselines. The benchmark notes use the primary-page source; the reason for the discrepancy is not established.
 
 ## Cloudflare documentation map
 
@@ -72,9 +76,9 @@ Substack pages that failed in the search tool were checked through their public 
 | [Hex-Rays IDA MCP](https://hex-rays.com/blog/hex-rays-ida-mcp-server) | Original domain-specific claim | Limited public protocol detail |
 | [Abhishek Rai preprint](https://arxiv.org/html/2611.19123v1) — 14 Nov 2026 | Return-shape ablation | Recent preprint, mock environment |
 
-Anthropic's advanced-tool-use page discusses Tool Search and Programmatic Tool Calling separately. The former's figures should not be relabeled as results of executing a generated program. The blog's relevant row explicitly identifies programmatic calling.
+Anthropic's advanced-tool-use page discusses Tool Search and Programmatic Tool Calling separately. The former's figures should not be relabeled as results of executing a generated program. The benchmark notes' relevant row explicitly identifies programmatic calling.
 
-For Bifrost, the blog uses the overall summary's cumulative-token and total-wall-time comparisons. Its costs are estimates at stated prices.
+For Bifrost, the benchmark notes use the overall summary's cumulative-token and total-wall-time comparisons. Its costs are estimates at stated prices.
 
 ## How claims were handled
 
@@ -84,6 +88,6 @@ For Bifrost, the blog uses the overall summary's cumulative-token and total-wall
 - Faster sandbox startup is kept separate from faster end-to-end task completion.
 - Architecture claims do not replace host-side authorization. Tool visibility and sandboxing are not permission systems by themselves.
 - No external result is presented as a benchmark of NitroStack or Incident Desk.
-- The proposed evaluation in the blog has not been run. Existing local checks remain the tests and stack verification recorded in [VERIFICATION.md](../VERIFICATION.md).
+- External evaluations have not been replicated in this project. Existing local checks remain the tests and stack verification recorded in [VERIFICATION.md](../VERIFICATION.md).
 
 The research changes the article's framing and sections. It does not change application behavior or manufacture a new benchmark for it.
