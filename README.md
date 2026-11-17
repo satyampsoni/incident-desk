@@ -178,7 +178,7 @@ The dependency audit reports a high-severity Zod collection-validation advisory 
 
 ## Further reading
 
-- [BLOG.md](BLOG.md): agent tool use, the arrival of Code Mode, and measuring NitroStack executions with Grafana.
+- [BLOG.md](BLOG.md): agent tool use, Code Mode diagrams and a runnable example, followed by Grafana measurements.
 - [Published benchmark notes](docs/research/CODE_MODE_BENCHMARKS.md): quantitative comparisons and their limitations.
 - [Code Mode research register](docs/research/CODE_MODE_SOURCES.md): Cloudflare and Substack sources, evidence quality, and benchmark caveats.
 - [DECISIONS.md](DECISIONS.md): alternatives, tradeoffs, limits, and upgrade considerations.

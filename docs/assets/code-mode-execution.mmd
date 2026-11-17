@@ -1,0 +1,20 @@
+sequenceDiagram
+    participant Agent as AI assistant
+    participant Sandbox as NitroStack sandbox
+    participant Tools as Application tools
+
+    Agent->>Sandbox: Execute the investigation program
+    Sandbox->>Tools: services_list()
+    Tools-->>Sandbox: Service catalog
+    loop For each service
+        Sandbox->>Tools: metrics_compare(service)
+        Tools-->>Sandbox: Before and after counts
+        Note over Sandbox: Calculate and compare error rates
+        opt Service meets the investigation rule
+            Sandbox->>Tools: deployments_list(service)
+            Tools-->>Sandbox: Deployment records
+            Sandbox->>Tools: errors_sample(service)
+            Tools-->>Sandbox: Error samples
+        end
+    end
+    Sandbox-->>Agent: Selected findings

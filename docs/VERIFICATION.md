@@ -65,6 +65,21 @@ CHROME_PATH='/Applications/Google Chrome.app/Contents/MacOS/Google Chrome' \
 
 Alternatively, install Playwright's Chromium with `npx playwright install chromium`, then run that script without `CHROME_PATH`. Screenshots use the live dashboard and are not generated mockups.
 
+## Article diagrams and executable example
+
+The expanded Code Mode article includes two sequence diagrams. Their editable Mermaid definitions live in `docs/assets/*.mmd`, with PNG and SVG exports alongside them. Both diagrams were rendered with Mermaid 11.4.1 and visually inspected.
+
+Regenerate the exports with:
+
+```bash
+CHROME_PATH='/Applications/Google Chrome.app/Contents/MacOS/Google Chrome' \
+  node scripts/render-blog-diagrams.mjs
+```
+
+The renderer downloads the pinned Mermaid bundle and uses the installed browser. Without `CHROME_PATH`, it uses Playwright Chromium, as described in the dashboard-capture instructions above.
+
+The [article's example program](examples/code-mode-investigation.js) was executed through NitroStack's QuickJS runtime. It made eight host tool calls and returned the checkout and inventory summaries printed in the article. This teaching example uses an increasing error-rate threshold of 1%; the main application workflow includes additional severity and latency rules.
+
 ## Dependency audit and limitations
 
 The [saved audit report](examples/dependency-audit.json) reports two high-severity package findings in one advisory chain: Zod and its dependent NitroStack package. The advisory is [GHSA-mrhx-c7xc-m3w5](https://github.com/advisories/GHSA-mrhx-c7xc-m3w5); no compatible audited fix is available in the pinned SDK graph. The command therefore exits with status 1. This is an acknowledged dependency finding, not a passing audit.

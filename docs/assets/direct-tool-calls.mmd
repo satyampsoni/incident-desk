@@ -1,0 +1,11 @@
+sequenceDiagram
+    participant Agent as AI assistant
+    participant Metrics as Metrics tool
+    participant Errors as Error tool
+
+    Agent->>Metrics: Read checkout metrics
+    Metrics-->>Agent: Request counts and error counts
+    Note over Agent: Calculate the error rate<br/>and choose the next operation
+    Agent->>Errors: Read checkout errors
+    Errors-->>Agent: Error records
+    Note over Agent: Select evidence for the answer

@@ -30,6 +30,68 @@ Code Mode lets an agent express a procedure in code and execute it with access t
 
 The application runs the underlying tool operations. The generated program supplies the loops and decisions that connect them.
 
+### Follow a decision between two calls
+
+Take the part of an investigation that checks checkout errors. The assistant needs the metrics before it can decide whether to request error records. In a direct tool-calling loop, it reads the first result, makes the comparison, and requests the next operation.
+
+![An assistant makes dependent tool calls](docs/assets/direct-tool-calls.png)
+
+The metrics and error records enter the conversation as separate results. A client can batch independent requests, but this decision depends on the metrics arriving first.
+
+### Put the comparison inside a program
+
+For a service review, give the assistant four tools: list services, compare metrics, retrieve deployments, and sample errors. The program below investigates a service if its error rate increased and reached at least 1%.
+
+```javascript
+const catalog = await callTool('services_list', {});
+const findings = [];
+
+for (const service of catalog.services) {
+  const metrics = await callTool('metrics_compare', { service: service.id });
+  const beforeRate = metrics.before.errors / metrics.before.requests;
+  const afterRate = metrics.after.errors / metrics.after.requests;
+
+  if (afterRate < 0.01 || afterRate <= beforeRate) continue;
+
+  const deployments = await callTool('deployments_list', { service: service.id });
+  const errors = await callTool('errors_sample', { service: service.id });
+
+  findings.push({
+    service: service.id,
+    errorRate: afterRate,
+    recentDeployments: deployments.items.length,
+    errorSamples: errors.items.length,
+  });
+}
+
+return findings;
+```
+
+This code runs inside Code Mode, where `callTool` requests an application tool. The loop handles one service at a time and calculates error rates from request and error counts. The `continue` line skips a service that fails the investigation rule, so the program avoids spending detail calls on it.
+
+For a service that passes the rule, the program collects deployments and error samples. It returns the service name, its error rate, and counts of the evidence it found. Raw records stay available to the program while the model receives a shorter result:
+
+```json
+[
+  {
+    "service": "checkout",
+    "errorRate": 0.06,
+    "recentDeployments": 1,
+    "errorSamples": 2
+  },
+  {
+    "service": "inventory",
+    "errorRate": 0.018,
+    "recentDeployments": 0,
+    "errorSamples": 1
+  }
+]
+```
+
+Here, `0.06` means a 6% error rate. The program examines three services and requests detail for two. That requires one catalog call, three metric comparisons, and four detail calls: eight host tool calls inside one execution.
+
+This [runnable example](docs/examples/code-mode-investigation.js) uses a short investigation rule to expose the control flow. The project's [complete workflow](workflows/triage.js) adds latency checks and severity thresholds, and returns evidence for an engineer to inspect.
+
 ## Less information for the model to carry
 
 An agent spends part of its available context on tool descriptions. Context is the information the model can work with during a request. A large catalog can consume a substantial share before the agent begins the user's task. Discovering the tools it needs can reduce that initial load.
@@ -58,15 +120,21 @@ NitroStack includes Code Mode in its MCP framework. Developers define the tools 
 
 An assistant uses `search` to find a tool and `get_schema` to inspect its inputs. It submits its program to `execute`, which runs the JavaScript in a sandbox, a controlled execution space with time and memory limits. Developers set a budget for tool calls.
 
+The diagram starts after the assistant has found the tools and checked their inputs. During execution, the program makes the comparisons and chooses which operations to request.
+
+![A Code Mode program calls tools inside NitroStack and returns selected findings](docs/assets/code-mode-execution.png)
+
+`callTool` connects the sandbox to the application. NitroStack finds the registered tool and validates the arguments before running it. It passes the result back into the program, where the script can read it and continue. The model receives the value the program returns when it finishes.
+
+You choose the capabilities behind that bridge. The program can use the registered tools; those tools determine which systems it can reach. In this application, the tools read service evidence. We grant no deployment-changing operation.
+
 We built **Incident Desk** to observe that execution path. The demonstration reviews checkout, inventory, and payments services. We gave it tools to compare metrics and retrieve deployment or error records.
 
 The investigation lists the services and compares their behavior across two windows. It requests further evidence for the services that cross the investigation thresholds. The complete workflow makes **eight tool calls inside one execution** and returns a report identifying the services that need attention.
 
 We use a reviewed program for the default run so we can repeat the procedure while examining its behavior. An MCP client can discover the same tools and submit another investigation program. Both routes pass through the application's execution controls and measurements.
 
-The tools read evidence. We kept the scope narrow so we could examine the execution without granting the program access to deployment changes.
-
-Around that workflow, we record completed runs, their duration, and the tool operations they enter. Prometheus collects and stores the measurements; Grafana queries them to draw the dashboard.
+One submitted program can contain several timed tool calls. We record the duration of the whole execution and the time spent in individual tool handlers. Prometheus collects those measurements so we can examine both levels in Grafana.
 
 ## Reading the executions in Grafana
 
