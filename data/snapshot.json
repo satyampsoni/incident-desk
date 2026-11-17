@@ -1,0 +1,38 @@
+{
+  "id": "checkout-release-regression",
+  "source": "synthetic-fixture",
+  "observedAt": "2026-11-17T10:00:00Z",
+  "windows": {
+    "before": { "from": "2026-11-17T09:20:00Z", "to": "2026-11-17T09:40:00Z" },
+    "after": { "from": "2026-11-17T09:40:00Z", "to": "2026-11-17T10:00:00Z" }
+  },
+  "services": [
+    {
+      "id": "checkout",
+      "owner": "commerce",
+      "before": { "requests": 2400, "errors": 12, "p95LatencyMs": 210 },
+      "after": { "requests": 2400, "errors": 144, "p95LatencyMs": 1480 },
+      "deployments": [{ "version": "checkout-2026.11.17.2", "deployedAt": "2026-11-17T09:42:00Z", "summary": "Enable synchronous address validation" }],
+      "errorSamples": [
+        { "timestamp": "2026-11-17T09:45:02Z", "code": "ADDRESS_PROVIDER_TIMEOUT", "message": "Address validation exceeded its 1200ms deadline" },
+        { "timestamp": "2026-11-17T09:49:17Z", "code": "ADDRESS_PROVIDER_TIMEOUT", "message": "Address validation exceeded its 1200ms deadline" }
+      ]
+    },
+    {
+      "id": "inventory",
+      "owner": "fulfillment",
+      "before": { "requests": 1000, "errors": 12, "p95LatencyMs": 380 },
+      "after": { "requests": 1000, "errors": 18, "p95LatencyMs": 420 },
+      "deployments": [],
+      "errorSamples": [{ "timestamp": "2026-11-17T09:52:11Z", "code": "RESERVATION_CONFLICT", "message": "Reservation competed with an in-flight stock adjustment" }]
+    },
+    {
+      "id": "payments",
+      "owner": "billing",
+      "before": { "requests": 1800, "errors": 9, "p95LatencyMs": 270 },
+      "after": { "requests": 1800, "errors": 9, "p95LatencyMs": 280 },
+      "deployments": [],
+      "errorSamples": []
+    }
+  ]
+}
