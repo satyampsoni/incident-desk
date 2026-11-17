@@ -1,185 +1,187 @@
-# Code Mode you can operate: an incident investigator with NitroStack and Grafana
+# Code Mode beyond the token-saving headlines
 
-A service starts failing after a release. Before deciding what to do, an engineer needs several kinds of evidence: the request failure rate, the latency change, what was deployed, and what the errors actually say. Those answers usually live behind different tools.
+*Cloudflare’s catalog numbers, the experiments on Substack, and a small incident investigator built with NitroStack and Grafana.*
 
-That makes incident investigation a useful place to explore Code Mode. The interesting work is not calling one endpoint. It is deciding which tool to call next, joining the answers, and returning the small part of the evidence that deserves attention.
+The number that gets repeated is 99.9%. Cloudflare can put its API behind a Code Mode interface that takes roughly a thousand tokens to describe. If you have spent time pruning an agent’s tool list, that is an appealing result.
 
-This walkthrough builds Incident Desk, a read-only investigation service using NitroStack's QuickJS-based Code Mode runtime. It also builds the operational side: Prometheus instrumentation, a provisioned Grafana dashboard, failure exercises, and integration checks.
+But I have four tools in Incident Desk, not thousands of API endpoints. Applying that percentage to this application would tell us very little.
 
-The included incident data is synthetic. The executions and monitoring pipeline are real. You can reproduce the example without an LLM key, then connect an MCP client when you want a model to write the scripts.
+I went through Cloudflare’s original posts, the implementation writeups on Substack, and the published comparisons behind the claims. The useful question became more specific: when does moving a workflow into code reduce the work the model has to do, and what does running that workflow cost?
 
-![Incident Desk running in Grafana](docs/assets/dashboard-overview.png)
+Incident Desk is a small way to examine that question. It investigates a synthetic service regression through NitroStack’s real Code Mode runtime. Grafana shows the executions. The project is [on GitHub](https://github.com/satyampsoni/incident-desk); the evidence behind the article is linked below.
 
-## Start with a question that needs more than one tool
+## First, separate the measurements
 
-Our investigation asks:
+There are at least three costs in play: describing the available tools, carrying out the task, and starting the environment that runs the generated code. A result about one cannot answer a question about the others.
 
-> Which services regressed between the two observation windows, and what evidence should an engineer inspect next?
+Here is the evidence I found most useful. These are the publishers’ results, not measurements from Incident Desk.
 
-The fixture contains three services: checkout, inventory, and payments. Each has request counts, error counts, and a supplied p95 latency for equal 20-minute windows. It also contains deployment metadata and a small, illustrative sample of errors.
+| Source and setup | Reported result | What the comparison covers |
+| --- | --- | --- |
+| [Cloudflare API MCP, February 2026](https://blog.cloudflare.com/code-mode-mcp/) | About **1.17 million → 1,000 tokens**, reported as **99.9% less** | The initial tool-interface footprint; discovery and task execution add work |
+| [Cloudflare enterprise portal](https://blog.cloudflare.com/enterprise-mcp/) | **52 tools**, about **9,400 → 600 tokens**, reported as **94% less** | Definitions from four internal MCP servers, replaced by a discovery/execution interface |
+| [Anthropic’s MCP code-execution example](https://www.anthropic.com/research/code-execution-with-mcp) | **150,000 → 2,000 tokens**, reported as **98.7% less** | Loading relevant tool definitions in the illustrated workflow; not a repeated multi-task evaluation |
+| [Anthropic’s programmatic tool calling](https://www.anthropic.com/research/advanced-tool-use) | **43,588 → 27,297 tokens**, a reported **37% reduction** | Average token usage on complex research tasks in its internal evaluation |
+| [Michael Levan’s Substack comparison](https://michaellevan.substack.com/p/a-week-in-ai-issue-16) | **13,869 → 1,368 prompt tokens**, reported as **90.14% less** | A GitHub MCP comparison; the post does not establish a broad repeated-task benchmark |
+| [Pydantic’s October 2026 evaluation](https://pydantic.dev/articles/why-code-mode-is-the-future) | On long tasks: **58% lower cost**, **51% less wall time**, **+16 percentage points** success | Eight models; 5,276 graded runs overall, with 288 runs per arm in the long-task tier |
+| [Bifrost’s published report](https://github.com/maximhq/bifrost-benchmarking/blob/main/mcp-code-mode-benchmark/benchmark_report.md) | At 508 tools: **92.8% fewer input tokens**, **17.1% less total wall time** | A vendor-run, 65-query comparison using Claude Sonnet 4.6; cumulative agent-loop tokens |
+| [Hex-Rays’ IDA MCP announcement](https://hex-rays.com/blog/hex-rays-ida-mcp-server) | Approximately **20% fewer tokens** | An internal malware-analysis evaluation against other implementations; limited methodological detail in the announcement |
 
-The checkout service is the obvious candidate. Its error rate rises from 0.5% to 6%, while p95 latency rises from 210 ms to 1,480 ms. A deployment enables synchronous address validation; the error samples report address-provider timeouts. That combination is worth investigating. It is not proof that the deployment caused the incident.
+The percentages belong beside their denominators. A catalog token count is useful for sizing an integration. A repeated task evaluation is useful for choosing an execution strategy. Neither gives this project a performance result by association.
 
-Inventory shows a smaller increase, from 1.2% errors to 1.8%. Payments remains at 0.5% errors. A useful report should keep the inventory signal without presenting payments as another incident just because its data exists.
+The same applies to cost. Fewer uncached input tokens, fewer cached input tokens, and fewer output tokens have different billing effects. A subscription may not change price at all. For an application, I would compare the total cost of a correct result, including unsuccessful attempts.
 
-Four host tools supply the evidence:
+## What Cloudflare actually changed
 
-| Tool | What it returns |
+In [September 2025, Kenton Varda and Sunil Pai](https://blog.cloudflare.com/code-mode/) described converting MCP tools into a TypeScript API and asking the model to write the code that uses it. The program can pass a result into the next call without asking the model to reproduce that result as another set of arguments.
+
+The [February API server](https://blog.cloudflare.com/code-mode-mcp/) put this behind MCP itself. The client gets `search` and `execute`: discover operations, then submit a program. Its initial interface is small; discovery and execution still add work.
+
+Cloudflare subsequently applied the approach at an [enterprise portal](https://blog.cloudflare.com/enterprise-mcp/), in its [internal engineering stack](https://blog.cloudflare.com/internal-ai-engineering-stack/), and in [Skipper, its data-platform agent](https://blog.cloudflare.com/our-unified-data-platform/). That is an important deployment choice: the execution interface can live in front of several existing servers, rather than requiring every upstream API to be redesigned.
+
+The [current documentation](https://developers.cloudflare.com/agents/tools/codemode/) also covers progressive discovery, reusable snippets, and integrations beyond the original API server. Its discovery surface has evolved. Treat Code Mode as an execution pattern; check the particular SDK’s contracts before copying an example.
+
+The protocol and the execution strategy are separate decisions. An MCP client can load tools selectively. A direct-tool client can batch independent calls. A useful comparison should say whether its baseline does those things.
+
+## Substack is useful when you follow the claim back to the experiment
+
+The practitioner posts explain why someone would bother changing a working agent.
+
+[Youssef Hosni’s Bifrost walkthrough](https://todatabeyond.substack.com/p/how-i-use-bifrost-mcp-gateway-and) is about controlling access as much as saving context: tool filtering, virtual keys, and a gateway shared by clients. Its benchmark discussion leads back to Bifrost’s report. I would read it as a setup guide, then use the report to assess the numbers.
+
+[Juan Velasquez’s account at GuruSup](https://odzen.substack.com/p/what-changed-when-our-agents-started) is closer to this application. A program pages through overdue tickets and groups them by customer. His demonstrated run uses two model requests instead of four. He also notes that some programs returned selected fields while others printed entire responses. Writing code only helps context use if the returned data is appropriately shaped.
+
+[Dan Cucolea’s portal article](https://allagentsconsidered.substack.com/p/one-mcp-to-rule-them-all) makes the operational tradeoff clear: a shared connection is easier to manage, but becomes another dependency on the request path. [Architecture Corner](https://architecturecorner.substack.com/p/code-mode-a-better-way-to-use-mcp) places the approach alongside narrower servers and CLI/skill-based integration. Those are reasonable alternatives for a small tool set.
+
+The [This Week in NET conversation](https://thisweekinnet.substack.com/p/code-mode-giving-ai-agents-an-entire) provides demos with Cloudflare’s Matt Carey. Its description uses an estimate of more than two million tokens; the currently accessible technical post says 1.17 million. I use the technical post’s figure in the table rather than combining the two.
+
+Michael Levan’s comparison is useful as a reported observation. Its prompt-token reduction does not justify dividing a different application’s whole bill by ten. We need the model, workload, cache behavior, retries, and correctness results before making that prediction.
+
+These posts describe different experiences. Repeating the same Cloudflare figure across several newsletters does not create several independent benchmarks.
+
+## The task benchmarks are more interesting than the biggest percentage
+
+Pydantic’s evaluation is relevant because it includes small CRUD applications. The results change with task size: at five items, Code Mode costs more on three of five scaling tasks, by 21–38%. At 200 items, it is 47–75% cheaper across those tasks.
+
+There is also a good correction to the usual round-trip explanation. In one calendar example, direct calling already batches 205 tool calls into eight model requests. Code Mode uses six model requests and 215 tool calls, yet takes 28.5 seconds rather than 119.5. Backend work did not disappear. The model carried less orchestration and intermediate data. These are internal benchmark results, not a prediction for NitroStack. [Pydantic’s results and methodology](https://pydantic.dev/articles/why-code-mode-is-the-future).
+
+Bifrost shows another distinction. Its input-token reduction grows from **58.2% at 96 tools**, to **84.5% at 251**, to **92.8% at 508**. The corresponding total wall-time reductions are **26.8%, 6.8%, and 17.1%**. In the largest round, output tokens increase **72.2%**, while estimated cost falls **92.2%**. A token saving is plainly not the same percentage improvement in elapsed time. The report also describes reruns and cases accepted with partial data, which matter when interpreting its pass rates. [Original report](https://github.com/maximhq/bifrost-benchmarking/blob/main/mcp-code-mode-benchmark/benchmark_report.md).
+
+A [November 2026 preprint by Abhishek Rai](https://arxiv.org/html/2611.19123v1) adds a detail I would test before tuning execution speed: output contracts. In its controlled mock-tool environment, removing return-shape hints reduces success by 22.7 and 39.5 percentage points for two models. The proposed extra routing layer does not show a statistically confirmed improvement over Code Mode alone. This is a recent preprint with a synthetic environment, but it is a useful warning against attributing every result to the execution architecture.
+
+For Incident Desk, these findings argue for a modest first goal: make a dependent workflow easy to inspect, keep its tool contracts clear, and measure the runtime. A model-quality or cost claim needs a separate experiment.
+
+## The application: collect evidence before suggesting an action
+
+Incident Desk has three services in a fixed synthetic snapshot. The question is straightforward: which services got worse between two observation windows, and what evidence should an engineer examine next?
+
+Checkout’s error rate goes from 0.5% to 6%. Its p95 latency goes from 210 ms to 1,480 ms. There is a recent deployment and a sample of address-provider timeouts. Inventory’s error rate goes from 1.2% to 1.8%. Payments stays at 0.5%.
+
+The application exposes four read-only tools:
+
+| Tool | Evidence |
 | --- | --- |
-| `services_list` | Service identities, owners, snapshot provenance, and comparison windows |
-| `metrics_compare` | Before/after request counts, error counts, and p95 latency |
-| `deployments_list` | Deployment evidence for one service |
-| `errors_sample` | A bounded sample of errors for one service |
+| `services_list` | Service identities, owners, snapshot time, comparison windows |
+| `metrics_compare` | Request counts, errors, and supplied p95 values for both windows |
+| `deployments_list` | Deployment records for one service |
+| `errors_sample` | A bounded sample of error records |
 
-The tools deliberately do not decide whether a service is unhealthy. The workflow owns that policy. This makes the difference between data access and orchestration visible in the code.
+The [canonical workflow](workflows/triage.js) reads the catalog, compares each service, and requests deployments and errors only for services that cross the policy thresholds. It returns checkout as critical, inventory as watch, and leaves healthy payments out of the findings.
 
-## Move the investigation loop into a program
+That is eight host tool calls: one catalog read, three comparisons, and four detail reads. The work happens inside one execution request.
 
-In a conventional agent loop, the model may fetch a service list, receive the result, ask for metrics, receive those results, and continue asking for deployment and error details. Every decision passes through another model turn.
-
-With NitroStack Code Mode, the client can discover the capabilities, inspect their schemas, and submit a JavaScript program through `execute`. That program uses the asynchronous `callTool` bridge to invoke host tools. NitroStack runs the guest program in a QuickJS WebAssembly sandbox. The model can receive the final report rather than every intermediate object. [NitroStack documents this discovery-and-execution interface](https://docs.nitrostack.ai/docs/sdk/transforms/code-mode).
-
-A minimal investigation looks like this:
+Here is the tool-composition part, shortened to show the control flow:
 
 ```javascript
 const catalog = await callTool('services_list', {});
-const comparisons = [];
+const evidence = [];
 
 for (const service of catalog.services) {
   const metrics = await callTool('metrics_compare', { service: service.id });
-  comparisons.push({
+  const errorRate = metrics.after.errors / metrics.after.requests;
+  if (errorRate < 0.05) continue;
+
+  evidence.push({
     service: service.id,
-    errorRate: metrics.after.errors / metrics.after.requests,
+    errorRate,
+    deployments: await callTool('deployments_list', { service: service.id }),
+    errors: await callTool('errors_sample', { service: service.id }),
   });
 }
 
-return comparisons;
+return evidence;
 ```
 
-The important change is where the loop runs. Backend calls still happen. Tool validation still happens. Discovery can still cost separate client interactions. Code Mode does not turn several operations into a database transaction, and it does not make the network disappear.
+This excerpt only demonstrates the critical error-rate branch. The complete workflow also handles latency regression, the watch threshold, zero-error baselines, ranking, and provenance.
 
-For this application, the interesting improvement is structural: the script can retain intermediate evidence, branch on it, and return a compact report from one execution request. We do not attach a token-saving percentage or latency multiplier to that claim; this project has no measured model baseline.
+There is no reason to have a model calculate these fractions in prose. There is also no reason to call a deployment tool for every healthy service. The program expresses both decisions directly.
 
-## Make the first example repeatable
+The deployment remains evidence to investigate. The report does not claim that timing proves causation, and the application cannot perform a rollback. If this were a permanent, unchanging reporting requirement, an ordinary reviewed backend function would be a good choice. Code Mode becomes more useful when a caller needs to compose the same tools differently for the next question.
 
-The canonical workflow is checked in as `workflows/triage.js`. The HTTP investigation endpoint submits that reviewed file. No model generates it at request time.
+## Why NitroStack here, rather than a Cloudflare Worker
 
-That choice makes the example reproducible. A model account, provider SDK, prompt, or stochastic completion cannot change the first-run result. It also gives us a stable program to test against the real sandbox.
+I wanted the example to run locally without an account or a model key. NitroStack provides the execution runtime and MCP interface in a Node.js application. Cloudflare’s implementation provides a different deployment environment. Choosing between them involves where the application should run and which capabilities it needs.
 
-This is still a Code Mode application. It runs the actual SDK's worker pool and bridge, and accepts custom programs through the HTTP execution endpoint. The optional stdio MCP transport exposes `search`, `get_schema`, and `execute`, so an AI client can discover the tools and generate its own investigation. The fixed program is the reproducible entry point, not a pretend autonomous agent.
+| This project | Cloudflare’s implementation |
+| --- | --- |
+| QuickJS WebAssembly in a Node worker pool | V8 isolates through Dynamic Workers |
+| Registered read-only host tools | Capabilities supplied to the Worker environment |
+| NitroStack meta-tools: `search`, `get_schema`, `execute` | API-server interface: `search`, `execute`; other integrations have their own discovery contracts |
+| Local HTTP and optional stdio MCP access | Cloudflare-hosted runtime and MCP integrations |
 
-## Write the policy carefully enough to test it
+Cloudflare’s [“100x faster” sandboxing post](https://blog.cloudflare.com/dynamic-workers/) compares isolate startup with a typical container: a few milliseconds and a few megabytes for the isolate. That is a runtime-startup claim. It does not compare this QuickJS application with Cloudflare, or establish a 100-fold improvement in a complete agent task.
 
-The policy marks a service critical if its error fraction reaches 5%, or if its p95 is at least a second and at least twice the baseline. A watch finding requires an error fraction of at least 1% and a relative increase of at least 50%.
+In Incident Desk, [the execution wrapper](src/runtime.ts) delegates to NitroStack’s actual `CodeModeTransform`. It adds admission and telemetry around that execution. The defaults are two workers, a 64 MiB per-sandbox limit, a three-second execution deadline, and 24 tool calls. At most four executions can be running or waiting. The next request gets 429.
 
-The workflow first reads metrics for every service. It then fetches deployments and errors only for services that cross a threshold. With the supplied fixture, the call count is:
+HTTP and MCP execution enter that same wrapper. Otherwise it would be easy to measure the demonstration endpoint and miss the scripts submitted by an actual client. An MCP client can discover the tools, inspect their inputs, and submit a different script through `execute`. The default HTTP investigation endpoint submits the reviewed workflow; it does not secretly invoke a model.
 
-```text
-1 service catalog
-3 metrics comparisons
-2 deployment queries
-2 error queries
-----------------------
-8 host tool calls
-```
+The guest has no Node globals or general network access. Host tools remain the authority boundary. Adding a powerful tool would grant a powerful capability; putting it behind a sandbox would not make it read-only. Cloudflare’s [execution-model documentation](https://developers.cloudflare.com/agents/tools/codemode/how-it-works/) is useful reading for the separation between generated code and the host operations it can request.
 
-Healthy payments does not trigger detail requests. This is a small example of why a program is useful: tool selection follows the evidence instead of a fixed “fetch everything” sequence.
+## What Grafana tells me about a run
 
-One test caught a less glamorous issue. Computing a 50% increase as `afterRate >= beforeRate * 1.5` missed the exact 1.2% to 1.8% boundary because of floating-point rounding. The implementation now compares the rational threshold with integer cross-products:
+An execution can look like one successful tool call to the client while doing several things behind that boundary. I wanted the dashboard to expose enough of that work to investigate a problem.
 
-```javascript
-const increasedByHalf =
-  metrics.after.errors * metrics.before.requests * 2
-  >= metrics.before.errors * metrics.after.requests * 3;
-```
+![Runtime overview from the running Grafana instance](docs/assets/dashboard-overview.png)
 
-The snapshot schema caps request counts so these products stay within JavaScript's safe integer range. This does not turn the policy into a statistical detector. It does make the stated boundary behave as intended.
+The top panels show completed runs, outcome, calls per run, current admission, and worker capacity. The graphs show execution rate, duration, tool activity, handler duration, and admission rejections. Process memory and returned result size give some context when a run grows unexpectedly.
 
-The report also handles zero-error baselines explicitly rather than dividing by zero and returning an infinite ratio. Positive request counts, unique service IDs, equal window lengths, and non-overlapping windows are validated when the snapshot loads.
+The measurements have specific meanings. Run duration includes queue wait. Host-call metrics count handler entries; schema validation can reject a call before it enters a handler. A request rejected at capacity is recorded separately from a script that started and failed. Five-second scrapes can miss brief queue peaks.
 
-## Put limits around an execution, not just around JavaScript
+The duration p95 is a histogram estimate over observed executions. A worker gauge sitting at zero during fast fixture reads is plausible. Neither panel should be converted into a claim about model inference latency or total agent cost.
 
-The application configures two workers, a 64 MiB sandbox memory limit, a three-second execution deadline, and a budget of 24 tool calls. It admits at most four running or waiting executions.
+The evidence section is separate:
 
-The admission bound is separate from the worker count. Two requests can run while two wait; the next request gets HTTP 429 with `Retry-After: 1`. This keeps an enthusiastic client from building an unlimited queue of promises and request state.
+![Fixed synthetic incident evidence](docs/assets/dashboard-evidence.png)
 
-There are also limits around the HTTP boundary: 48 KiB request bodies, 32 KiB scripts, and 256 KiB serialized result values. The last check runs after the SDK produces a result, so it should not be mistaken for a host allocation limit. A script should project or aggregate data before returning it.
+Those error fractions and latency values come from the fixture, observed at its stated timestamp. The execution graphs come from actual runs. Finding counts update after the canonical workflow succeeds. Custom scripts cannot overwrite those counts by returning an object named `findings`.
 
-All four host tools are read-only. Guest code cannot access Node's `process` or `require`, and there is no arbitrary network tool. The SDK is configured to reject destructive tools. These choices reduce the capabilities available to the guest; they do not make every future handler safe by association.
+The screenshots include deliberately failed runs from the traffic generator. They show that the monitoring path works; they are not a success-rate evaluation of an AI model.
 
-If a later version adds a deployment tool, that handler's side effects would still happen in the host system. A sandbox timeout cannot undo a completed rollback or cancel a payment. A live data adapter would also need its own abortable I/O and backend deadline. The fixture handlers are synchronous, bounded reads, so they do not hide a hanging upstream request.
+## What this build establishes, and the benchmark I would run next
 
-## Measure the path that real clients use
+The repository has ten passing integration tests using real QuickJS workers and a real MCP client. They cover the expected report, input validation, isolation, timeout recovery, tool budgets, admission, and HTTP boundaries. The stack check verifies Prometheus ingestion, the provisioned dashboard, all 21 panel expressions, and three alert rules. [Recorded verification](docs/VERIFICATION.md).
 
-It is easy to instrument a convenient demonstration endpoint and miss the actual agent path. Incident Desk avoids that by putting admission and execution measurements in `ObservedCodeMode.run()`.
+It has no measured token saving, model-task success rate, or direct-tool comparison. It also has a documented SDK cleanup-timer patch and an unresolved Zod dependency advisory. Those details belong in the [decision record](DECISIONS.md) when deciding whether to take the example further.
 
-HTTP submits to that method directly. The MCP resolution for `execute` returns a tool wrapper that calls the same method. The underlying computation still delegates to NitroStack's `CodeModeTransform.execute()`.
+For a useful next experiment, I would compare three agent configurations:
 
-Each completed run records its outcome, wall-clock duration, host handler entries, result size, and a code hash. The wall-clock duration includes time waiting for a worker. Histograms capture latency distributions. A bounded in-memory history retains the latest 100 summaries, and structured completion events go to stderr so stdout remains valid MCP traffic.
+| Arm | What the client gets |
+| --- | --- |
+| Direct tools | The four tools, with independent-call batching enabled |
+| Discovery plus direct calls | The same tools loaded selectively, without script execution |
+| Code Mode | Discovery and schemas, then a generated investigation program |
 
-Admission rejections are separate from completed errors. A request rejected at capacity never entered the sandbox; calling it a failed script would hide the operational distinction.
+Every arm needs the same evidence, permissions, input and output contracts, model version, and required answer. The final report should be graded for correct service classifications, preserved evidence, and unsupported causal claims. An empty but cheap report is a failure.
 
-Host-call metrics also have a precise meaning: they count calls that entered a host handler. An invalid argument can fail the SDK's schema validation before that point. Consequently, a failed execution can correctly have zero handler entries. Metric names and panel descriptions need to say what was measured rather than imply a more comprehensive count.
+I would repeat paired tasks at several sizes and report distributions, rather than select the best trace. Input, cached input, output, retries, billed cost, model requests, backend tool calls, and end-to-end duration should be separate fields. Runtime-only timing can then be examined alongside the full task timing.
 
-Run IDs, script bodies, timestamps, and deployment versions are not metric labels. The small label sets are workflow, outcome, known tool name, and the bounded fixture service identities. Prometheus explicitly warns that every label combination creates a time series, so cardinality belongs in the design rather than in a cleanup exercise later. [Prometheus instrumentation guidance](https://prometheus.io/docs/practices/instrumentation/).
+The catalog and workload should grow independently. Adding irrelevant tool definitions tests discovery overhead. Adding services tests orchestration and data handling. For the latter, the default tool budget must scale: this workflow needs `1 + service count + 2 × flagged service count` calls. Leaving a 24-call limit in place while expanding the fixture could turn a configuration limit into a misleading accuracy result.
 
-## Give Grafana two clearly separated stories
+I would also test missing fields, empty deployments, backend errors, and timeouts. If a model needs three repairs before its script works, those repairs belong in the result. If an adapter returns a large raw object and the script prints it all back, that belongs in the result too.
 
-The dashboard's first story is operational:
+This would tell us whether Code Mode helps this workflow. The current build gives us a runnable place to conduct that experiment and observe the execution underneath it.
 
-- How many executions completed, and how many succeeded?
-- What is the recent p95 execution duration?
-- How many host tools does a run invoke?
-- Are workers busy, is anything queued, and are requests being rejected?
-- Which handlers receive traffic, and what do their latency distributions look like?
-- What is happening to process memory and returned result size?
-
-Prometheus scrapes the app every five seconds. Counters preserve completed events between scrapes, but instantaneous worker and queue gauges can miss short bursts. A mostly empty queue graph during a fast fixture workload is not evidence that queuing is impossible.
-
-The run-duration panel uses a histogram quantile:
-
-```promql
-histogram_quantile(
-  0.95,
-  sum by (le, workflow) (
-    rate(incident_desk_run_duration_seconds_bucket[$__rate_interval])
-  )
-)
-```
-
-This is an estimate based on configured buckets and recent observations. It can be blank while idle. Substituting zero would suggest an observation that did not happen. [Prometheus explains the limitations and aggregation properties of histograms](https://prometheus.io/docs/practices/histograms/).
-
-The second story is the incident evidence. That row is explicitly labeled **FIXED DEMO SNAPSHOT**, with the observation timestamp and comparison windows. Its bars show the supplied service error fractions and p95 latency. Latest-finding counts update after the canonical triage workflow succeeds. A custom script cannot publish a fake canonical finding just by returning a similarly named object.
-
-This separation matters. A service's 6% error rate is incident evidence; a failed sandbox execution is application behavior. Putting both under a generic “errors” heading would make the dashboard harder to reason about.
-
-![The separately labeled evidence section](docs/assets/dashboard-evidence.png)
-
-## Provision the dashboard as part of the application
-
-Compose starts the app, Prometheus, and Grafana. Datasource and dashboard providers are committed YAML. The dashboard has a stable UID and a committed JSON definition generated by `scripts/dashboard.mjs`.
-
-Grafana loads that definition from a mounted directory. UI editing is disabled so repository changes remain authoritative. This avoids a setup sequence where someone must log in, add the right datasource, import JSON, and remember which settings were changed. [Grafana's file provisioning mechanism supports this workflow](https://grafana.com/docs/grafana/latest/administration/provisioning/).
-
-Three Prometheus rules cover an unavailable scrape target, a sustained execution-error fraction with a minimum sample count, and sustained admission pressure. The rules are evaluated locally. Notification routing is outside this example; a valid alert expression does not itself deliver a page.
-
-Default Compose uses persistent named volumes. The machine used for verification had a full Docker data volume, which prevented Grafana's database and Prometheus's storage from initializing. We did not prune unrelated data. An optional Compose override puts only these demo stores in temporary filesystems. That disposable mode is useful for a walkthrough, but its history disappears when containers are recreated.
-
-## Exercise failures before writing the success story
-
-The application tests use the real QuickJS runtime. They check the expected evidence report, fresh interpreter state, missing host globals, invalid arguments, unknown tools, and nested meta-tool rejection. They also run an infinite loop, confirm that it times out, and then execute another script to verify recovery.
-
-Separate tests cover the tool-call budget, bounded admission, code/result limits, HTTP authentication and payload handling, and an actual MCP client session. The client lists the meta-tools, searches, asks for a schema, and executes a script. This is more useful than mocking the sandbox and asserting that a wrapper called a method.
-
-Those tests exposed an SDK lifecycle detail too. NitroStack 1.1.3 starts an import-time cleanup interval in its rate-limit decorator. That timer kept completed CLI and test processes alive even after the server stopped. The installation includes a narrow, checked patch that calls `.unref()` on that interval. It is documented, idempotent, and fails if the expected SDK code changes. Forcing the test runner to exit would have concealed the behavior.
-
-End-to-end verification goes beyond application tests: it runs the canonical report, waits for Prometheus to ingest the finding gauge, loads the provisioned Grafana dashboard, executes all 21 panel queries against Prometheus, and checks three healthy alert rules. The dashboard has 24 panels including headings and explanatory text. The checked-in verification record and screenshots come from that running stack.
-
-The dependency audit is also recorded. The current NitroStack dependency graph includes a Zod collection-validation advisory with no compatible audited fix in its Zod 3 line. Bounds on this application's inputs narrow what it accepts, but are not a general dependency fix. This remains a local example; a public multi-tenant service needs a compatible patched dependency graph and a separate deployment review. The exact finding and tradeoff are in `DECISIONS.md`.
-
-## Run it yourself
-
-From the project directory:
+## Run the example
 
 ```bash
 docker compose up -d --build
@@ -188,7 +190,7 @@ curl -sS http://127.0.0.1:4310/api/investigate \
   -H 'Content-Type: application/json' -d '{}'
 ```
 
-Open `http://127.0.0.1:4311/d/incident-desk`. To create a short stream of actual executions, install the helper dependencies with Node.js 22 or 24 and run:
+Open [Grafana](http://127.0.0.1:4311/d/incident-desk). With Node.js 22 or 24, you can populate the graphs and verify the stack:
 
 ```bash
 npm ci
@@ -196,8 +198,10 @@ npm run demo -- --traffic --include-failures --count 60
 npm run smoke:stack
 ```
 
-Every tenth traffic-generator run deliberately throws. Those errors should be visible in run history, completion counters, and Grafana. The command is a demonstration workload, not a throughput test.
+The [README](README.md) includes the optional stdio MCP setup, configuration, and a disposable-storage variant. For a three-service fixture, use the project to understand the execution path. For a larger integration, use the published evidence to choose a comparison worth running on your own workload.
 
-For your own evidence, start with an exported JSON snapshot matching `src/snapshot.ts`. A later version can replace the four handlers with real monitoring and deployment queries while keeping the guest workflow contract. Preserve bounded queries and independent backend timeouts, and make the data's observation time visible.
+## Reading notes
 
-The result is a small application with an inspectable execution model: a program gathers evidence through narrow tools, the runtime bounds and measures it, and the dashboard explains what happened. That is a practical foundation for adding an AI client without making the underlying system depend on one.
+Research checked on **17 November 2026**. The [source register](docs/research/CODE_MODE_SOURCES.md) records the wider Cloudflare and Substack search, which pages contain original measurements, and which are commentary or repeat another source’s claim. It also records the 81% retrospective claim, the source discrepancy in the API-catalog estimate, and additional ecosystem coverage that would otherwise distract from the implementation.
+
+For a short reading sequence: start with [Cloudflare’s original proposal](https://blog.cloudflare.com/code-mode/), read [the API-server measurement](https://blog.cloudflare.com/code-mode-mcp/), then [the Pydantic task evaluation](https://pydantic.dev/articles/why-code-mode-is-the-future). Follow with [the GuruSup example](https://odzen.substack.com/p/what-changed-when-our-agents-started) for a small workflow and [the Bifrost report](https://github.com/maximhq/bifrost-benchmarking/blob/main/mcp-code-mode-benchmark/benchmark_report.md) for catalog scaling. They answer different questions, which is what makes the set useful.

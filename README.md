@@ -178,7 +178,8 @@ The dependency audit reports a high-severity Zod collection-validation advisory 
 
 ## Further reading
 
-- [BLOG.md](BLOG.md): the complete implementation walkthrough and Code Mode explanation.
+- [BLOG.md](BLOG.md): published Code Mode benchmarks, practitioner accounts, and the implementation walkthrough.
+- [Code Mode research register](docs/research/CODE_MODE_SOURCES.md): Cloudflare and Substack sources, evidence quality, and benchmark caveats.
 - [DECISIONS.md](DECISIONS.md): alternatives, tradeoffs, limits, and upgrade considerations.
 - [docs/VERIFICATION.md](docs/VERIFICATION.md): test and stack evidence.
 
